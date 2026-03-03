@@ -12,7 +12,7 @@ def parse_and_store(raw_content: str, filename: str) -> int:
     parsed = parse_835(raw_content)
     db = get_db()
     try:
-        file_id = _store_file(db, parsed, filename)
+        file_id = _store_file(db, parsed, filename, raw_content=raw_content)
         _store_claims(db, file_id, parsed["claims"])
         _store_provider_adjustments(db, file_id, parsed["provider_adjustments"])
         db.commit()
@@ -70,7 +70,80 @@ def delete_file(file_id: int) -> bool:
         db.close()
 
 
-def _store_file(db: sqlite3.Connection, parsed: dict, filename: str, source_type: str = "edi", pdf_notes: str = "") -> int:
+def get_raw_content(file_id: int) -> dict | None:
+    """Get the raw content of a file by ID."""
+    db = get_db()
+    try:
+        row = db.execute(
+            "SELECT id, filename, source_type, raw_content, uploaded_at FROM edi_files WHERE id = ?",
+            (file_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        db.close()
+
+
+def update_raw_content(file_id: int, raw_content: str) -> int:
+    """Update raw content for a file, re-parse, and replace all associated data."""
+    parsed = parse_835(raw_content)
+    db = get_db()
+    try:
+        # Get current file info
+        row = db.execute("SELECT filename FROM edi_files WHERE id = ?", (file_id,)).fetchone()
+        if not row:
+            raise ValueError(f"File {file_id} not found")
+
+        # Delete old claims (CASCADE handles adjustments, service lines, etc.)
+        db.execute("DELETE FROM claims WHERE file_id = ?", (file_id,))
+        db.execute("DELETE FROM provider_adjustments WHERE file_id = ?", (file_id,))
+
+        # Update file record with new parsed header data
+        env = parsed["envelope"]
+        hdr = parsed["header"]
+        payer = parsed["payer"]
+        payee = parsed["payee"]
+        db.execute("""
+            UPDATE edi_files SET
+                isa_sender_id=?, isa_receiver_id=?, isa_date=?, isa_control_number=?,
+                gs_functional_id=?, gs_sender_code=?, gs_receiver_code=?, gs_date=?, gs_control_number=?,
+                bpr_transaction_type=?, bpr_amount=?, bpr_credit_debit=?, bpr_payment_method=?, bpr_payment_date=?,
+                trn_reference=?, trn_originator=?,
+                payer_name=?, payer_id=?, payee_name=?, payee_id=?, payee_npi=?,
+                contact_name=?, contact_phone=?, contact_email=?,
+                raw_content=?
+            WHERE id = ?
+        """, (
+            env.get("sender_id", ""), env.get("receiver_id", ""),
+            env.get("date", ""), env.get("control_number", ""),
+            env.get("gs_functional_id", ""), env.get("gs_sender_code", ""),
+            env.get("gs_receiver_code", ""), env.get("gs_date", ""),
+            env.get("gs_control_number", ""),
+            hdr.get("transaction_type", ""), hdr.get("amount", 0),
+            hdr.get("credit_debit", ""), hdr.get("payment_method", ""),
+            hdr.get("payment_date", ""), hdr.get("reference", ""),
+            hdr.get("originator", ""),
+            payer.get("name", ""), payer.get("id", ""),
+            payee.get("name", ""), payee.get("id", ""),
+            payee.get("id", ""),
+            hdr.get("contact_name", ""), hdr.get("contact_phone", ""),
+            hdr.get("contact_email", ""),
+            raw_content,
+            file_id,
+        ))
+
+        # Re-store parsed data
+        _store_claims(db, file_id, parsed["claims"])
+        _store_provider_adjustments(db, file_id, parsed["provider_adjustments"])
+        db.commit()
+        return file_id
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def _store_file(db: sqlite3.Connection, parsed: dict, filename: str, source_type: str = "edi", pdf_notes: str = "", raw_content: str = "") -> int:
     """Store file envelope and header data."""
     env = parsed["envelope"]
     hdr = parsed["header"]
@@ -85,8 +158,8 @@ def _store_file(db: sqlite3.Connection, parsed: dict, filename: str, source_type
             trn_reference, trn_originator,
             payer_name, payer_id, payee_name, payee_id, payee_npi,
             contact_name, contact_phone, contact_email,
-            source_type, pdf_parsing_notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            source_type, pdf_parsing_notes, raw_content
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         filename,
         env.get("sender_id", ""),
@@ -115,6 +188,7 @@ def _store_file(db: sqlite3.Connection, parsed: dict, filename: str, source_type
         hdr.get("contact_email", ""),
         source_type,
         pdf_notes,
+        raw_content,
     ))
     return cursor.lastrowid
 

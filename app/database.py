@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS edi_files (
     contact_phone TEXT,
     contact_email TEXT,
     source_type TEXT DEFAULT 'edi',
-    pdf_parsing_notes TEXT
+    pdf_parsing_notes TEXT,
+    raw_content TEXT
 );
 
 CREATE TABLE IF NOT EXISTS claims (
@@ -166,6 +167,7 @@ def _migrate(conn: sqlite3.Connection):
     migrations = [
         ("edi_files", "source_type", "TEXT DEFAULT 'edi'"),
         ("edi_files", "pdf_parsing_notes", "TEXT"),
+        ("edi_files", "raw_content", "TEXT"),
     ]
 
     for table, col, col_def in migrations:

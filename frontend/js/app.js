@@ -83,6 +83,12 @@ const App = {
                     window.location.hash = '#/codes';
                     break;
                 case '7':
+                    window.location.hash = '#/listeners';
+                    break;
+                case '8':
+                    window.location.hash = '#/developer';
+                    break;
+                case '9':
                     window.location.hash = '#/settings';
                     break;
                 case 'Escape':
@@ -106,7 +112,7 @@ const App = {
                         <tbody>
                             <tr><td><kbd>/</kbd></td><td>Focus search</td></tr>
                             <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
-                            <tr><td><kbd>1</kbd>-<kbd>7</kbd></td><td>Navigate to page (Files, Dashboard, Claims, Analytics, Compare, Codes, Settings)</td></tr>
+                            <tr><td><kbd>1</kbd>-<kbd>9</kbd></td><td>Navigate to page (Files, Dashboard, Claims, Analytics, Compare, Codes, Listeners, Developer, Settings)</td></tr>
                             <tr><td><kbd>Esc</kbd></td><td>Close modal / blur search</td></tr>
                         </tbody>
                     </table>
@@ -162,6 +168,10 @@ const App = {
             await FileComparePage.render();
         } else if (path === '/codes') {
             await CodeLookupPage.render();
+        } else if (path === '/listeners') {
+            await ListenersPage.render();
+        } else if (path === '/developer') {
+            await DeveloperPage.render();
         } else if (path === '/settings') {
             await SettingsPage.render();
         } else if (path === '/api-keys') {

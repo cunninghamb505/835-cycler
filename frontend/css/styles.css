@@ -748,6 +748,47 @@ kbd {
     margin-right: 4px;
 }
 
+/* ===== Developer View ===== */
+.dev-editor-wrapper {
+    margin-top: 12px;
+}
+
+.dev-editor-info {
+    display: flex;
+    gap: 16px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.dev-textarea {
+    width: 100%;
+    min-height: 400px;
+    max-height: 600px;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    resize: vertical;
+    tab-size: 4;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.dev-textarea:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.dev-textarea[readonly] {
+    opacity: 0.7;
+    cursor: default;
+}
+
 /* ===== Amount Colors ===== */
 .amount-positive { color: var(--success); }
 .amount-negative { color: var(--danger); }
